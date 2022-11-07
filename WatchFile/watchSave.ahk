@@ -9,6 +9,7 @@ SetBatchLines,-1
 SetWinDelay,-1
 OnExit, GuiClose
 
+GameExeFile= D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\Evoland.exe
 WatchFolders=D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI
 ; global DetectFileName:="D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\atest.txt"
 global DetectFileName:="D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\slot0.sav"
@@ -26,12 +27,17 @@ Hotkey, ^!Up, BackupFileByHand, On
 ;1.shortcut to backup
 ;2.autorun when open
 
-Run, D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\Evoland.exe,D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI
+; Run, D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\Evoland.exe,D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI
 Gui,+Resize
 
 Gui, Margin, 20, 20
-Gui, Add, Text, , Watch Save File:
-Gui, Add, Edit, xm y+3 w730 vDetectFileName cGray +ReadOnly, Select a save file ...
+Gui, Add, Text, , Add Game Execution File:
+Gui, Add, Edit, xm y+3 w730 vGameExeFile cGray +ReadOnly, %GameExeFile%
+Gui, Add, Button, x+m yp w50 hp +Default vSelectExe gSelectExeFile, ...
+Gui, Add, Button, y+10 w50 hp +Default vRunExe gRunExe, Run
+
+Gui, Add, Text, xm, Watch Save File:
+Gui, Add, Edit, xm y+3 w730 vDetectFileName cGray +ReadOnly, %DetectFileName%
 Gui, Add, Button, x+m yp w50 hp +Default vSelect gSelectFile, ...
 
 ; Gui,Add,ListView,xm r10 w800 vWatchingDirectoriesList HWNDhList1 gShow,WatchingDirectories|WatchingSubdirs
@@ -55,7 +61,21 @@ Gui,Add,Button,gClear x+1,Clear List
 Gui,Add,StatusBar,,Changes Registered
 Gui, Show
 Return
+
 ; ----------------------------------------------------------------------------------------------------------------------------------
+RunExe:
+    Run, %GameExeFile%, %WatchFolders%
+return 
+
+SelectExeFile: 
+    FileSelectFile, GameExeFile
+    If !(ErrorLevel) {
+        GuiControl, +cDefault, GameExeFile
+        GuiControl, , GameExeFile, %GameExeFile%
+        GuiControl, Enable, Action
+    }
+Return
+
 SelectFile: 
     FileSelectFile, DetectFileName
     If !(ErrorLevel) {
