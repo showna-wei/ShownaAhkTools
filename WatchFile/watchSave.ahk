@@ -10,48 +10,50 @@ SetWinDelay,-1
 OnExit, GuiClose
 
 WatchFolders=D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI
-global DetectFileName:="D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\atest.txt"
-; global DetectFileName:="D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\slot0.sav"
+; global DetectFileName:="D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\atest.txt"
+global DetectFileName:="D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\slot0.sav"
 global BackupFolderName="tempSave\"
 global LastModifiedTimeTickCount:= 0
 global CurrentModifiedTimeString:= ""
 global ResultMessage:= ""
 ;backup time interval must more than
-global timeIterval:=60000
+global timeItervalBackup:=6000
 global timeIterval:=600
 
 Hotkey, ^!Down, BackupFileByHand, On
+Hotkey, ^!Up, BackupFileByHand, On
 ; Return
-
-; Run, D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\Evoland.exe
 ;1.shortcut to backup
 ;2.autorun when open
 
+Run, D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI\Evoland.exe,D:\Program Files\Epic Games\EvolandLegendaryEditdWwMI
 Gui,+Resize
 
 Gui, Margin, 20, 20
-Gui, Add, Text, , Watch Save File:Gui
+Gui, Add, Text, , Watch Save File:
 Gui, Add, Edit, xm y+3 w730 vDetectFileName cGray +ReadOnly, Select a save file ...
 Gui, Add, Button, x+m yp w50 hp +Default vSelect gSelectFile, ...
 
-Gui,Add,ListView,xm r10 w800 vWatchingDirectoriesList HWNDhList1 gShow,WatchingDirectories|WatchingSubdirs
+; Gui,Add,ListView,xm r10 w800 vWatchingDirectoriesList HWNDhList1 gShow,WatchingDirectories|WatchingSubdirs
+Gui,Add,ListView,xm r10 w800 vWatchingDirectoriesList HWNDhList1 gShow,WatchingFiles
 
 ;loop,parse is a way to split watchFolders into signle item indexed by A_LoopField with a splited sign('|')
 Loop,Parse,WatchFolders,|
-    WatchDirectory(A_LoopField,"ReportChanges")
+    ; Loop,Parse,DetectFileName,|
+WatchDirectory(A_LoopField,"ReportChanges")
 
 ;A line that begins with a comma (or any other operator) is automatically appended to the line above it.
 ;SubStr: 0 extracts the last character and -1 extracts the two last characters
-,LV_Add("",SubStr(A_LoopField,0)="*" ? (SubStr(A_LoopField,1,StrLen(A_LoopField)-1)) : A_LoopField
+Loop,Parse,DetectFileName,|
+    LV_Add("",SubStr(A_LoopField,0)="*" ? (SubStr(A_LoopField,1,StrLen(A_LoopField)-1)) : A_LoopField
 ,SubStr(A_LoopField,0)="*" ? 1 : 0)
 LV_ModifyCol(1,"AutoHdr")
 Gui,Add,ListView,xm r30 w800 vChangesList HWNDhList2 gShow,Time|FileChangedFrom - Double click to show in Explorer|FileChangedTo - Double click to show in Explorer| Backup
-Gui,Add,Button,gAdd Default,Watch new directory
-Gui,Add,Button,gDelete x+1,Stop watching all directories
+; Gui,Add,Button,gAdd Default,Watch new directory
+Gui,Add,Button,gDelete Default,Stop watching all directories
 Gui,Add,Button,gClear x+1,Clear List
 Gui,Add,StatusBar,,Changes Registered
 Gui, Show
-
 Return
 ; ----------------------------------------------------------------------------------------------------------------------------------
 SelectFile: 
@@ -63,9 +65,11 @@ SelectFile:
     }
     BackupInfo:=GetBackUpFilePath(DetectFileName,"")
     WatchFolders:=BackupInfo.OriginalPath
-    MsgBox %WatchFolders%
+    ; MsgBox %WatchFolders%
     Gui,ListView, WatchingDirectoriesList
-    WatchDirectory(WatchFolders),LV_Add("",WatchFolders,0)
+    LV_Delete()
+    ; WatchDirectory(WatchFolders),LV_Add("",WatchFolders,0)
+    WatchDirectory(WatchFolders),LV_Add("",BackupInfo.file,0)
     LV_ModifyCol(1,"AutoHdr")
     Gui,ListView, ChangesList
 Return
@@ -133,27 +137,38 @@ ReportChanges(times,from,to,message){
 CopyFile(from,to,folderName){
     if (SubStr(folderName,0)="\")
         StringTrimRight,folderName,folderName,1
-    MsgBox %folderName%
+    ; MsgBox %folderName%
     if !FileExist(folderName){
         FileCreateDir, %folderName%
-        MsgBox Create%folderName%
+        ; MsgBox Create%folderName%
     }
     FileCopy, %from%, %to%
 }
 
 BackupFileByHand(){
-    CopyTips:="BY"A_YYYY A_MM A_DD A_Hour A_Min A_Sec 
-    BackupInfo:=GetBackUpFilePath(DetectFileName,CopyTips)
+    ; CopyTag:="BY"A_YYYY A_MM A_DD A_Hour A_Min A_Sec 
+    ThisHotkey :=A_ThisHotkey
+    ;MsgBox, %ThisHotkey%
+    CopyTag:="ByHand" 
+    BackupInfo:=GetBackUpFilePath(DetectFileName,CopyTag)
     BackupPath:=BackupInfo.path
     BackupFile:=BackupInfo.file
     ; MsgBox % " " . DetectFileName . " " . BackupFile . " " . BackupPath
-    CopyFile(DetectFileName,BackupFile,BackupPath)
-    message=Backup By Hand
+    if( ThisHotkey="^!Down"){
+        CopyFile(DetectFileName,BackupFile,BackupPath)
+        message=Backup File By Hand
+    }else if(ThisHotkey="^!Up") {
+        CopyFile(BackupFile,DetectFileName,BackupPath)
+        message=Restore Backup File By Hand
+    }
+    else{
+        return
+    }
     times:=A_Hour ":" A_Min ":" A_Sec ":" A_MSec
     ReportChanges(times,DetectFileName,BackupFile,message)
 }
 
-GetBackUpFilePath(DetectFileName,CopyTips){
+GetBackUpFilePath(DetectFileName,CopyTag){
     StringGetPos, pos1, DetectFileName, \, R
     length := StrLen(DetectFileName) - pos1 -1
     pos_prev1 := pos1+1 ;last / position
@@ -165,7 +180,7 @@ GetBackUpFilePath(DetectFileName,CopyTips){
     StringMid, path_component, DetectFileName, 1, %pos_prev1%
     StringMid, name_component3, DetectFileName, %pos_prev2%, %length%
     OriginaName=%name_component1%%name_component3% 
-    CopiedFileName=%name_component1%%CopyTips%%name_component3% 
+    CopiedFileName=%name_component1%%CopyTag%%name_component3% 
     BackupPath=%path_component%%BackupFolderName%
     BackupFile=%path_component%%BackupFolderName%%CopiedFileName%
     BackupInfo:={path:BackupPath,file:BackupFile,OriginalPath:path_component,OriginalFName:OriginaName,NewFileNmae:CopiedFileName}
@@ -300,7 +315,7 @@ WatchDirectory(p*){
             ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;init time;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
             CurrentModifiedTimeString:=A_Hour ":" A_Min ":" A_Sec ":" A_MSec
             CurrentTimeTickCount:=A_TickCount
-            CopyTips:=A_YYYY A_MM A_DD A_Hour A_Min
+            CopyTag:=A_YYYY A_MM A_DD A_Hour A_Min
             ResultMessage=""
 
             FNI:=A_Index>1?(new _Struct(FILE_NOTIFY_INFORMATION,FNI[""]+FNI.NextEntryOffset)):(new _Struct(FILE_NOTIFY_INFORMATION,@[LP].FNI[""]))
@@ -325,14 +340,15 @@ WatchDirectory(p*){
                         FileTo:=DetectFileName
                         If (FileName=DetectFileName){
                             TimeIntervals:=CurrentTimeTickCount-LastModifiedTimeTickCount
-                            FileTo=Modified Yes%CurrentTimeTickCount%\,%LastModifiedTimeTickCount%\,%TimeIntervals%
+                            ; FileTo=Modified Yes%CurrentTimeTickCount%\,%LastModifiedTimeTickCount%\,%TimeIntervals%
+                            FileTo=Modified in %TimeIntervals% ms, not backup.
                             EndLoop:=1
                             //one minutes backup one time
-                            If (TimeIntervals> timeIterval){
+                            If (TimeIntervals> timeItervalBackup){
                                 FileTo=Modified Yes2 ;%CurrentTimeTickCount% %LastModifiedTimeTickCount% %TimeIntervals%
                                 LastModifiedTimeTickCount:=CurrentTimeTickCount
 
-                                BackupInfo:=GetBackUpFilePath(DetectFileName,CopyTips)
+                                BackupInfo:=GetBackUpFilePath(DetectFileName,CopyTag)
                                 CopyFile(DetectFileName,BackupInfo.file,BackupInfo.path)
                                 ofname:=BackupInfo.OriginalFName
                                 nfname:=BackupInfo.NewFileNmae
