@@ -28,7 +28,13 @@ Hotkey, ^!Down, BackupFileByHand, On
 ;2.autorun when open
 
 Gui,+Resize
-Gui,Add,ListView,r10 w800 vWatchingDirectoriesList HWNDhList1 gShow,WatchingDirectories|WatchingSubdirs
+
+Gui, Margin, 20, 20
+Gui, Add, Text, , Watch Save File:Gui
+Gui, Add, Edit, xm y+3 w730 vDetectFileName cGray +ReadOnly, Select a save file ...
+Gui, Add, Button, x+m yp w50 hp +Default vSelect gSelectFile, ...
+
+Gui,Add,ListView,xm r10 w800 vWatchingDirectoriesList HWNDhList1 gShow,WatchingDirectories|WatchingSubdirs
 
 ;loop,parse is a way to split watchFolders into signle item indexed by A_LoopField with a splited sign('|')
 Loop,Parse,WatchFolders,|
@@ -39,13 +45,29 @@ Loop,Parse,WatchFolders,|
 ,LV_Add("",SubStr(A_LoopField,0)="*" ? (SubStr(A_LoopField,1,StrLen(A_LoopField)-1)) : A_LoopField
 ,SubStr(A_LoopField,0)="*" ? 1 : 0)
 LV_ModifyCol(1,"AutoHdr")
-Gui,Add,ListView,r30 w800 vChangesList HWNDhList2 gShow,Time|FileChangedFrom - Double click to show in Explorer|FileChangedTo - Double click to show in Explorer| Backup
+Gui,Add,ListView,xm r30 w800 vChangesList HWNDhList2 gShow,Time|FileChangedFrom - Double click to show in Explorer|FileChangedTo - Double click to show in Explorer| Backup
 Gui,Add,Button,gAdd Default,Watch new directory
 Gui,Add,Button,gDelete x+1,Stop watching all directories
 Gui,Add,Button,gClear x+1,Clear List
 Gui,Add,StatusBar,,Changes Registered
 Gui, Show
 
+Return
+; ----------------------------------------------------------------------------------------------------------------------------------
+SelectFile: 
+    FileSelectFile, DetectFileName
+    If !(ErrorLevel) {
+        GuiControl, +cDefault, DetectFileName
+        GuiControl, , DetectFileName, %DetectFileName%
+        GuiControl, Enable, Action
+    }
+    BackupInfo:=GetBackUpFilePath(DetectFileName,"")
+    WatchFolders:=BackupInfo.OriginalPath
+    MsgBox %WatchFolders%
+    Gui,ListView, WatchingDirectoriesList
+    WatchDirectory(WatchFolders),LV_Add("",WatchFolders,0)
+    LV_ModifyCol(1,"AutoHdr")
+    Gui,ListView, ChangesList
 Return
 
 Clear:
@@ -109,8 +131,12 @@ ReportChanges(times,from,to,message){
 }
 
 CopyFile(from,to,folderName){
+    if (SubStr(folderName,0)="\")
+        StringTrimRight,folderName,folderName,1
+    MsgBox %folderName%
     if !FileExist(folderName){
-        FileCreateDir, folderName
+        FileCreateDir, %folderName%
+        MsgBox Create%folderName%
     }
     FileCopy, %from%, %to%
 }
@@ -142,7 +168,7 @@ GetBackUpFilePath(DetectFileName,CopyTips){
     CopiedFileName=%name_component1%%CopyTips%%name_component3% 
     BackupPath=%path_component%%BackupFolderName%
     BackupFile=%path_component%%BackupFolderName%%CopiedFileName%
-    BackupInfo:={path:BackupPath,file:BackupFile,OriginalFName:OriginaName,NewFileNmae:CopiedFileName}
+    BackupInfo:={path:BackupPath,file:BackupFile,OriginalPath:path_component,OriginalFName:OriginaName,NewFileNmae:CopiedFileName}
 return BackupInfo
 }
 
@@ -204,7 +230,7 @@ WatchDirectory(p*){
                 Return 0
             else if (InStr(SubStr(folder,1,StrLen(folder)-1),dir1 "\") && dir2){ ;replace watch
                 DllCall("CloseHandle","Uint",@[folder].hD),DllCall("CloseHandle","Uint",@[folder].O.hEvent),reset:=i
-            }
+            } 
         }
         LP:=SubStr(LP,1,DllCall("GetLongPathName","Str",dir1,"Uint",&LP,"Uint",VarSetCapacity(LP))) "\"
         If !(reset && @[reset]:=LP)
